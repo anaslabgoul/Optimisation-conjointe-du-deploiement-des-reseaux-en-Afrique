@@ -70,8 +70,7 @@ def coverage_lower(m, t, s, a):
     return pyo.Constraint.Skip
 model.c_3 = pyo.Constraint(model.T, model.S, model.A, rule=coverage_lower)
 
-# (4) δ_{t,a,C} = ∏ …   → LINEARISATION car elle ne peut pas être résolue telle quelle
-# Approche standard : δ = 1 seulement si r et Rcomp matchent le pattern C
+
 def delta_implication(m, t, a, C):
     # C est un tuple binaire représentant (cτ, c1, c2, ...)
     res = 1
@@ -131,3 +130,4 @@ def objective(m):
     T_end = max(m.T)
     return sum(m.u[T_end, a, τ, "NOτ"] for a in m.A)
 model.obj = pyo.Objective(rule=objective, sense=pyo.maximize)
+
