@@ -68,7 +68,7 @@ DNG_data = {0: 1, 1: 1, 2: 1, 3: 1}
 model.DNG = pyo.Param(model.T, initialize = DNG_data)  # DNG dépend du temps
 
 CAPANG_data = {0: 200, 1: 200, 2: 200, 3: 200}
-model.CAPANG = pyo.Param(model.T, CAPANG_data) # DNG et CAPANG dépendent du temps
+model.CAPANG = pyo.Param(model.T, initialize = CAPANG_data) # DNG et CAPANG dépendent du temps
 
 u_a_data = {'A1': 1000, 'A2': 1500, 'A3': 2000}
 model.u_a = pyo.Param(model.A, initialize = u_a_data)  # utilisateurs totaux dans la zone a
@@ -77,11 +77,15 @@ Rcomp_data = {}
 for t in model.T:
     for a in model.A:
         for i in model.I:
-            if t==0:
-                Rcomp_data[(t, a, i)] = 0  # pas de couverture initiale des autres opérateurs
-            else:
-                Rcomp_data[(t, a, i)] = np.random.randint(0, 2) 
-model.Rcomp = pyo.Param(model.T, model.A, model.I, within=pyo.Binary)
+            if i != τ:
+                if t==0:
+                    Rcomp_data[(t, a, i)] = 0  # pas de couverture initiale des autres opérateurs
+                else:
+                    if Rcomp_data[(t-1, a, i)] == 1:
+                        Rcomp_data[(t, a, i)] = 1 # une fois couvert, toujours couvert
+                    else:
+                        Rcomp_data[(t, a, i)] = np.random.randint(0,2)
+model.Rcomp = pyo.Param(model.T, model.A, model.I, initialize=Rcomp_data)  # couverture des autres opérateurs
 
 f_data = {}
 for a in model.A:
@@ -89,7 +93,7 @@ for a in model.A:
         for o1 in model.O:
             for o2 in model.O:
                 f_data[(a, C, o1, o2)] =  np.random.rand()
-model.f = pyo.Param(model.A, model.Cvec, model.O, model.O)
+model.f = pyo.Param(model.A, model.Cvec, model.O, model.O, initialize=f_data)  # taux de migration
 
 # 3. VARIABLES
 
@@ -115,7 +119,7 @@ def coverage_lower(m, t, s, a):
 model.c_3 = pyo.Constraint(model.T, model.S, model.A, rule=coverage_lower)
 
 
-def delta_implication(m, t, a, C):
+def delta_implication(m, t, a, *C):
     # C est un tuple binaire représentant (cτ, c1, c2, ...)
     res = 1
     # opérateur τ (index 0)
@@ -123,7 +127,7 @@ def delta_implication(m, t, a, C):
     res *= (m.r[t, a] * cτ + (1 - cτ) * (1 - m.r[t, a]))
     # autres opérateurs
     autres_operateurs = list(m.I)[1:]  # on exclut τ
-    for k, i in enumerate(autres_operateurs, start=1):
+    for k, i in enumerate(autres_operateurs):
         ck = C[k]
         R = m.Rcomp[t, a, i]
         res *= (R * ck + (1 - ck) * (1 - R))
@@ -148,12 +152,12 @@ model.c_5 = pyo.Constraint(model.T, model.A, model.I, model.O, rule=migration)
 
 # (6) u_NO = somme sur les sites
 def assign_users(m, t, a):
-    return m.u[t, a, τ, "NOτ"] == sum(m.u_site[t, a, s] for s in Sa_dict[a])
+    return m.u[t, a, τ, "NO"] == sum(m.u_site[t, a, s] for s in Sa_dict[a])
 model.c_6 = pyo.Constraint(model.T, model.A, rule=assign_users)
 
 # (7) capacité
 def capacity(m, t, s):
-    return sum(model.DNG * m.u_site[t, a, s] for a in As_dict[s]) <= model.CAPANG * m.z[t, s]
+    return sum(model.DNG[t] * m.u_site[t, a, s] for a in As_dict[s]) <= model.CAPANG[t] * m.z[t, s]
 model.c_7 = pyo.Constraint(model.T, model.S, rule=capacity)
 
 # (8) budget sur le nombre de sites déployés par période
@@ -173,7 +177,7 @@ model.c_9 = pyo.Constraint(model.T, rule=cov_pop)
 
 def objective(m):
     T_end = max(m.T)
-    return sum(m.u[T_end, a, τ, "NOτ"] for a in m.A)
+    return sum(m.u[T_end, a, τ, "NO"] for a in m.A)
 model.obj = pyo.Objective(rule=objective, sense=pyo.maximize)
 
 model.write('model.lp', io_options={'symbolic_solver_labels': True})
