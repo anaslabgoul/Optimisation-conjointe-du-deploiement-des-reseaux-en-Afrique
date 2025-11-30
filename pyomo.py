@@ -1,16 +1,17 @@
 import pyomo.environ as pyo
 from itertools import product
+import numpy as np
 
 model = pyo.ConcreteModel()
 
 
 # 1. SETS
 
-T=[0, 1, 2, 3, 4]  # horizon temporel
+T=[0, 1, 2, 3]  # horizon temporel
 A=['A1', 'A2', 'A3']  # zones
-I=['I', 'I1', 'I2']  # opérateurs
+I=['I', 'I1']  # opérateurs
 τ='I'  # notre opérateur
-O=['O', 'O1', 'O2', 'NO', 'NO1', 'NO2']  # offres
+O=['O1', 'O2', 'NO']  # offres
 Si = ['S1', 'S2', 'S3']  # sites de l’opérateur τ
 
 model.T = pyo.Set(initialize=T)  # horizon temporel
@@ -37,14 +38,57 @@ model.As = As_dict                         # mapping s → {zones}
 
 # 2. PARAMÈTRES
 
-model.Zmax = pyo.Param(model.T)  # nombre max de sites déployables par période
-model.QA = pyo.Param(model.T) # couverture minimale de la population par période
-model.ua0 = pyo.Param(model.A, model.I, model.O)
-model.DNG = pyo.Param(model.T)  # DNG dépend du temps
-model.CAPANG = pyo.Param(model.T) # DNG et CAPANG dépendent du temps
-model.u_a = pyo.Param(model.A, within=pyo.NonNegativeIntegers)  # utilisateurs totaux dans la zone a
+Zmax_data = {0: 2, 1: 2, 2: 2, 3: 2}
+model.Zmax = pyo.Param(model.T, initialize = Zmax_data)  # nombre max de sites déployables par période
 
+QA_data = {0: 0.2, 1: 0.2, 2: 0.2, 3: 0.2}
+model.QA = pyo.Param(model.T, initialize = QA_data) # couverture minimale de la population par période
+
+ua0_data = {('A1', 'I', 'O1'): 50,
+            ('A1', 'I', 'O2'): 100,
+            ('A1', 'I', 'NO'): 0,
+            ('A1', 'I1', 'O1'): 50,
+            ('A1', 'I1', 'O2'): 100,
+            ('A1', 'I1', 'NO'): 0,
+            ('A2', 'I', 'O1'): 50,
+            ('A2', 'I', 'O2'): 100,
+            ('A2', 'I', 'NO'): 0,
+            ('A2', 'I1', 'O1'): 50,
+            ('A2', 'I1', 'O2'): 100,
+            ('A2', 'I1', 'NO'): 0,
+            ('A3', 'I', 'O1'): 50,
+            ('A3', 'I', 'O2'): 100,
+            ('A3', 'I', 'NO'): 0,
+            ('A3', 'I1', 'O1'): 50,
+            ('A3', 'I1', 'O2'): 100,
+            ('A3', 'I1', 'NO'): 0,}
+model.ua0 = pyo.Param(model.A, model.I, model.O, initialize=ua0_data)  # utilisateurs initiaux
+
+DNG_data = {0: 1, 1: 1, 2: 1, 3: 1}
+model.DNG = pyo.Param(model.T, initialize = DNG_data)  # DNG dépend du temps
+
+CAPANG_data = {0: 200, 1: 200, 2: 200, 3: 200}
+model.CAPANG = pyo.Param(model.T, CAPANG_data) # DNG et CAPANG dépendent du temps
+
+u_a_data = {'A1': 1000, 'A2': 1500, 'A3': 2000}
+model.u_a = pyo.Param(model.A, initialize = u_a_data)  # utilisateurs totaux dans la zone a
+
+Rcomp_data = {}
+for t in model.T:
+    for a in model.A:
+        for i in model.I:
+            if t==0:
+                Rcomp_data[(t, a, i)] = 0  # pas de couverture initiale des autres opérateurs
+            else:
+                Rcomp_data[(t, a, i)] = np.random.randint(0, 2) 
 model.Rcomp = pyo.Param(model.T, model.A, model.I, within=pyo.Binary)
+
+f_data = {}
+for a in model.A:
+    for C in model.Cvec:
+        for o1 in model.O:
+            for o2 in model.O:
+                f_data[(a, C, o1, o2)] =  np.random.rand()
 model.f = pyo.Param(model.A, model.Cvec, model.O, model.O)
 
 # 3. VARIABLES
@@ -76,12 +120,13 @@ def delta_implication(m, t, a, C):
     res = 1
     # opérateur τ (index 0)
     cτ = C[0]
-    res *= (m.r[t, a] * cτ + (1 - cτ)(1 - m.r[t, a]))
+    res *= (m.r[t, a] * cτ + (1 - cτ) * (1 - m.r[t, a]))
     # autres opérateurs
-    autres_operateurs = m.I[1:]  # on exclut τ
+    autres_operateurs = list(m.I)[1:]  # on exclut τ
     for k, i in enumerate(autres_operateurs, start=1):
         ck = C[k]
-        res *= (m.Rcomp[t, a, i] * ck + (1 - ck)(1 - m.Rcomp[t, a, i]))
+        R = m.Rcomp[t, a, i]
+        res *= (R * ck + (1 - ck) * (1 - R))
 
     return m.delta[t, a, C] == res 
 
@@ -131,3 +176,4 @@ def objective(m):
     return sum(m.u[T_end, a, τ, "NOτ"] for a in m.A)
 model.obj = pyo.Objective(rule=objective, sense=pyo.maximize)
 
+model.write('model.lp', io_options={'symbolic_solver_labels': True})
