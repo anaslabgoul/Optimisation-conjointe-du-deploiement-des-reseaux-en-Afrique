@@ -175,28 +175,28 @@ def S_def_rule(m, t, a, *C, o):
 model.Sexpr = S_def_rule  # utilitaire pour lecture; on utilisera l'expression directement dans les contraintes
 
 # 1) y <= M * delta
-def y_le_Mdelta(m, t, a, *C, o):
+def y_le_Mdelta(m, t, a, o, *C):
     if t == min(m.T): return pyo.Constraint.Skip
     return m.y[t-1, a, C, o] <= m.M[a, C, o] * m.delta[t-1, a, C]
-model.c_y1 = pyo.Constraint(model.T, model.A, model.Cvec, model.O, rule=y_le_Mdelta)
+model.c_y1 = pyo.Constraint(model.T, model.A, model.O, model.Cvec, rule=y_le_Mdelta)
 
 # 2) y >= 0  (déjà forcé par var NonNegativeReals) -> pas nécessaire
 
 # 3) y <= S
-def y_le_S(m, t, a, *C, o):
+def y_le_S(m, t, a, o, *C):
     if t == min(m.T): return pyo.Constraint.Skip
     S_expr = sum(model.f[a, C, o_prev, o] * m.u[t-1, a, i_prev, o_prev]
                  for i_prev in m.I for o_prev in m.O)
     return m.y[t-1, a, C, o] <= S_expr
-model.c_y2 = pyo.Constraint(model.T, model.A, model.Cvec, model.O, rule=y_le_S)
+model.c_y2 = pyo.Constraint(model.T, model.A, model.O, model.Cvec, rule=y_le_S)
 
 # 4) y >= S - M*(1-delta)
-def y_ge_S_minus_M_1minusdelta(m, t, a, *C, o):
+def y_ge_S_minus_M_1minusdelta(m, t, a, o, *C):
     if t == min(m.T): return pyo.Constraint.Skip
     S_expr = sum(model.f[a, C, o_prev, o] * m.u[t-1, a, i_prev, o_prev]
                  for i_prev in m.I for o_prev in m.O)
     return m.y[t-1, a, C, o] >= S_expr - m.M[a, C, o] * (1 - m.delta[t-1, a, C])
-model.c_y3 = pyo.Constraint(model.T, model.A, model.Cvec, model.O, rule=y_ge_S_minus_M_1minusdelta)
+model.c_y3 = pyo.Constraint(model.T, model.A, model.O, model.Cvec, rule=y_ge_S_minus_M_1minusdelta)
 
 # Remplacer la contrainte migration non-linéaire par la somme des y
 def migration_lin(m, t, a, i, o):
