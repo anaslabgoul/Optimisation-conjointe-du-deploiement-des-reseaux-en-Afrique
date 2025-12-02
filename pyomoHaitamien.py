@@ -238,4 +238,16 @@ def objective(m):
     return sum(m.u[T_end, a, τ, "NO"] for a in m.A)
 model.obj = pyo.Objective(rule=objective, sense=pyo.maximize)
 
+
+
 model.write('model.lp', io_options={'symbolic_solver_labels': True})
+
+# Create solver
+solver = pyo.SolverFactory('glpk')
+
+# Solve
+results = solver.solve(model, tee=True)
+
+# Display solver status
+print("\nSolver status:", results.solver.status)
+print("Termination condition:", results.solver.termination_condition)
