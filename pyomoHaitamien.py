@@ -11,13 +11,15 @@ T=[0, 1, 2, 3]  # horizon temporel
 A=['A1', 'A2', 'A3']  # zones
 I=['I', 'I1']  # opérateurs
 τ='I'  # notre opérateur
-O=['O1', 'O2', 'NO']  # offres
+O=['O', 'NO', 'NO1']  # offres
+O_i = {'I': ['O', 'NO'], 'I1': ['NO1']}  # offres par opérateur
 Si = ['S1', 'S2', 'S3']  # sites de l’opérateur τ
 
 model.T = pyo.Set(initialize=T)  # horizon temporel
 model.A = pyo.Set(initialize=A)  # zones
 model.I = pyo.Set(initialize=I)  # opérateurs
 model.O = pyo.Set(initialize=O)  # offres !!! il faut mettre l'offre de chaque opérateur
+model.O_i = O_i  # offres par opérateur
 model.S = pyo.Set(initialize=Si) # sites de l’opérateur i
 
 # Couples utiles
@@ -44,23 +46,23 @@ model.Zmax = pyo.Param(model.T, initialize = Zmax_data)  # nombre max de sites d
 QA_data = {0: 0.2, 1: 0.2, 2: 0.2, 3: 0.2}
 model.QA = pyo.Param(model.T, initialize = QA_data) # couverture minimale de la population par période
 
-ua0_data = {('A1', 'I', 'O1'): 50,
-            ('A1', 'I', 'O2'): 100,
+ua0_data = {('A1', 'I', 'NO1'): 50,
+            ('A1', 'I', 'O'): 100,
             ('A1', 'I', 'NO'): 0,
-            ('A1', 'I1', 'O1'): 50,
-            ('A1', 'I1', 'O2'): 100,
+            ('A1', 'I1', 'NO1'): 50,
+            ('A1', 'I1', 'O'): 100,
             ('A1', 'I1', 'NO'): 0,
-            ('A2', 'I', 'O1'): 50,
-            ('A2', 'I', 'O2'): 100,
+            ('A2', 'I', 'NO1'): 50,
+            ('A2', 'I', 'O'): 100,
             ('A2', 'I', 'NO'): 0,
-            ('A2', 'I1', 'O1'): 50,
-            ('A2', 'I1', 'O2'): 100,
+            ('A2', 'I1', 'NO1'): 50,
+            ('A2', 'I1', 'O'): 100,
             ('A2', 'I1', 'NO'): 0,
-            ('A3', 'I', 'O1'): 50,
-            ('A3', 'I', 'O2'): 100,
+            ('A3', 'I', 'NO1'): 50,
+            ('A3', 'I', 'O'): 100,
             ('A3', 'I', 'NO'): 0,
-            ('A3', 'I1', 'O1'): 50,
-            ('A3', 'I1', 'O2'): 100,
+            ('A3', 'I1', 'NO1'): 50,
+            ('A3', 'I1', 'O'): 100,
             ('A3', 'I1', 'NO'): 0,}
 
 
@@ -141,7 +143,7 @@ model.c_4 = pyo.Constraint(model.T, model.A, model.Cvec, rule=delta_implication)
 
 
 
-###C5
+# (5) Migration non-linéaire
 # --- Ajout des variables auxiliaires et paramètres M ---
 # Note: suppose que model.ua0 est disponible comme borne supérieure pour u (tu l'as déjà)
 # On crée un param M[a,C,o]
@@ -152,7 +154,7 @@ def compute_M():
             for o in model.O:
                 M_val = 0.0
                 for i_prev in model.I:
-                    for o_prev in model.O:
+                    for o_prev in model.O_i[i_prev]:
                         M_val += pyo.value(model.f[a, C, o_prev, o]) * pyo.value(model.u_a[a])
                 M[(a, C, o)] = M_val
     return M
@@ -164,37 +166,27 @@ model.M = pyo.Param(model.A, model.Cvec, model.O, initialize=M_data, mutable=Tru
 # variable auxiliaire y_{t-1,a,C,o}
 model.y = pyo.Var(model.T, model.A, model.Cvec, model.O, within=pyo.NonNegativeReals)
 
-# On ne crée pas explicitement S comme Var : on le définit via une contrainte (affine) utilisant u_{t-1}
-# --- Contraintes de linéarisation ---
-def S_def_rule(m, t, a, *C, o):
-    # S_{t-1,a,C,o} = sum_{i',o'} f * u_{t-1,a,i',o'}
-    if t == min(m.T):
-        return pyo.Constraint.Skip
-    return sum(m.f[a, C, o_prev, o] * m.u[t-1, a, i_prev, o_prev]
-               for i_prev in m.I for o_prev in m.O)  # expression S
-model.Sexpr = S_def_rule  # utilitaire pour lecture; on utilisera l'expression directement dans les contraintes
-
-# 1) y <= M * delta
+# (5) 1) y <= M * delta
 def y_le_Mdelta(m, t, a, o, *C):
     if t == min(m.T): return pyo.Constraint.Skip
     return m.y[t-1, a, C, o] <= m.M[a, C, o] * m.delta[t-1, a, C]
 model.c_y1 = pyo.Constraint(model.T, model.A, model.O, model.Cvec, rule=y_le_Mdelta)
 
-# 2) y >= 0  (déjà forcé par var NonNegativeReals) -> pas nécessaire
+# (5) 2) y >= 0  (déjà forcé par var NonNegativeReals) -> pas nécessaire
 
-# 3) y <= S
+# (5) 3) y <= S
 def y_le_S(m, t, a, o, *C):
     if t == min(m.T): return pyo.Constraint.Skip
     S_expr = sum(model.f[a, C, o_prev, o] * m.u[t-1, a, i_prev, o_prev]
-                 for i_prev in m.I for o_prev in m.O)
+                 for i_prev in m.I for o_prev in m.O_i[i_prev])
     return m.y[t-1, a, C, o] <= S_expr
 model.c_y2 = pyo.Constraint(model.T, model.A, model.O, model.Cvec, rule=y_le_S)
 
-# 4) y >= S - M*(1-delta)
+# (5) 4) y >= S - M*(1-delta)
 def y_ge_S_minus_M_1minusdelta(m, t, a, o, *C):
     if t == min(m.T): return pyo.Constraint.Skip
     S_expr = sum(model.f[a, C, o_prev, o] * m.u[t-1, a, i_prev, o_prev]
-                 for i_prev in m.I for o_prev in m.O)
+                 for i_prev in m.I for o_prev in m.O_i[i_prev])
     return m.y[t-1, a, C, o] >= S_expr - m.M[a, C, o] * (1 - m.delta[t-1, a, C])
 model.c_y3 = pyo.Constraint(model.T, model.A, model.O, model.Cvec, rule=y_ge_S_minus_M_1minusdelta)
 
