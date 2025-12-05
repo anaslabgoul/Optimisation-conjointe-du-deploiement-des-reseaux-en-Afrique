@@ -10,11 +10,11 @@ model = pyo.ConcreteModel()
 # 1. SETS
 
 T=[0, 1, 2, 3, 4, 5]  # horizon temporel
-A = list(pd.read_csv("areas_instance.csv", sep=";")["AREAS"])  # zones
+A = list(pd.read_csv("Petite instance d'essai/areas_instance.csv", sep=";")["AREAS"])  # zones
 I=['ORANGE','FREE MOBILE', 'BOUYGUES TELECOM','SFR']  # opérateurs
 τ='ORANGE'  # notre opérateur
 O=['o3G-FREE MOBILE', 'o3G-BOUYGUES TELECOM', 'o3G-SFR','o3G-ORANGE','o4G-FREE MOBILE','o4G-BOUYGUES TELECOM','o4G-SFR','o4G-ORANGE','o5G-FREE MOBILE','o5G-BOUYGUES TELECOM','o5G-SFR','o5G-ORANGE']  # offres
-Si = list(pd.read_csv("Existing_sites_instance.csv", sep=";")["EXISTING_SITES"]) # sites de l’opérateur τ
+Si = list(pd.read_csv("Petite instance d'essai/Existing_sites_instance.csv", sep=";")["EXISTING_SITES"]) # sites de l’opérateur τ
 
 model.T = pyo.Set(initialize=T)  # horizon temporel
 model.A = pyo.Set(initialize=A)  # zones
@@ -24,7 +24,7 @@ model.S = pyo.Set(initialize=Si) # sites de l’opérateur i
 
 # Couples utiles
 C_space = list(product([0,1], repeat=len(I)))  # Toutes les combinaisons de couverture
-df = pd.read_csv("Areas_sites_link_instance.csv", sep=";")   # contient colonnes "a" et "s"
+df = pd.read_csv("Petite instance d'essai/Areas_sites_link_instance.csv", sep=";")   # contient colonnes "a" et "s"
 
 Sa_dict = {}
 
@@ -37,7 +37,7 @@ for _, row in df.iterrows():
 
     Sa_dict[zone].append(site)
 
-df = pd.read_csv("Areas_sites_link_instance.csv", sep=";")   # contient colonnes "a" et "s"
+df = pd.read_csv("Petite instance d'essai/Areas_sites_link_instance.csv", sep=";")   # contient colonnes "a" et "s"
 
 As_dict = {}
 
@@ -56,17 +56,17 @@ model.Sa = Sa_dict                         # mapping a → {sites}
 model.As = As_dict                         # mapping s → {zones}
 
 # 2. PARAMÈTRES
-df_zmax = pd.read_csv("OPERATIONAL_LIMITS.csv", sep=";")
+df_zmax = pd.read_csv("Petite instance d'essai/OPERATIONAL_LIMITS.csv", sep=";")
 Zmax_data = {row.TIME_SLOTS: row["MAX_NUMBER_OF_DEPLOYMENTS"] for _,row in df_zmax.iterrows()}
 Zmax_data [0] = 0
 model.Zmax = pyo.Param(model.T, initialize = Zmax_data)  # nombre max de sites déployables par période
 
-df_qa = pd.read_csv("STRATEGIC_GUIDELINES.csv", sep=";")
+df_qa = pd.read_csv("Petite instance d'essai/STRATEGIC_GUIDELINES.csv", sep=";")
 QA_data = {row.TIME_SLOTS: row["QA"] for _,row in df_qa.iterrows()}
 QA_data [0] = 0
 model.QA = pyo.Param(model.T, initialize = QA_data) # couverture minimale de la population par période
 
-df = pd.read_csv("areas_instance.csv", sep=";")
+df = pd.read_csv("Petite instance d'essai/areas_instance.csv", sep=";")
 
 ua0_data = {}
 for _, row in df.iterrows():
@@ -81,18 +81,18 @@ for a in A:
         
 model.ua0 = pyo.Param(model.A, model.I, model.O, initialize=ua0_data)  # utilisateurs initiaux
 
-df_dng = pd.read_csv("DEMAND.csv", sep=";")
+df_dng = pd.read_csv("Petite instance d'essai/DEMAND.csv", sep=";")
 
 DNG_data = {row.TIME_SLOTS: row["5G"] for _,row in df_dng.iterrows()}
 DNG_data[0] = 0
 model.DNG = pyo.Param(model.T, initialize = DNG_data)  # DNG dépend du temps
 
-df_capang = pd.read_csv("CAPACITY.csv", sep=";")
+df_capang = pd.read_csv("Petite instance d'essai/CAPACITY.csv", sep=";")
 CAPANG_data = {row.TIME_SLOTS: row["5G"] for _,row in df_capang.iterrows()}
 CAPANG_data[0] = 0
 model.CAPANG = pyo.Param(model.T, initialize = CAPANG_data) # DNG et CAPANG dépendent du temps
 
-df_ua = pd.read_csv("areas_instance.csv", sep=";")
+df_ua = pd.read_csv("Petite instance d'essai/areas_instance.csv", sep=";")
 u_a_data = {}
 for _, row in df.iterrows():
     somme =0
@@ -102,14 +102,14 @@ for _, row in df.iterrows():
 
 model.u_a = pyo.Param(model.A, initialize = u_a_data)  # utilisateurs totaux dans la zone a
 
-df_Rcomp = pd.read_csv("COMPETITORS_STRATEGY_instance.csv", sep=";")
+df_Rcomp = pd.read_csv("Petite instance d'essai/COMPETITORS_STRATEGY_instance.csv", sep=";")
 Rcomp_data = {}
 for _, row in df_Rcomp.iterrows():
     for col in df_Rcomp.columns[2:5]:
         Rcomp_data[row["TIME_SLOTS"],row["AREAS"], col] = 1 * row[col]
 model.Rcomp = pyo.Param(model.T, model.A, model.I, initialize=Rcomp_data)  # couverture des autres opérateurs
 
-df_fdata = pd.read_csv("UPGRADE_FUNCTION.csv", sep=";")
+df_fdata = pd.read_csv("Petite instance d'essai/UPGRADE_FUNCTION.csv", sep=";")
 
 f_data = {}
 for _, row in df_fdata.iterrows():
