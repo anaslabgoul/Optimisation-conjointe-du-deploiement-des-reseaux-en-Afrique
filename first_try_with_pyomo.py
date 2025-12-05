@@ -7,29 +7,18 @@ model = pyo.ConcreteModel()
 
 # 1. SETS
 
-T=[0, 1, 2, 3]  # horizon temporel
-A=['A1', 'A2', 'A3']  # zones
-I=['I', 'I1']  # opérateurs
-τ='I'  # notre opérateur
-O=['O1', 'O2', 'NO']  # offres
-Si = ['S1', 'S2', 'S3']  # sites de l’opérateur τ
+from importation_des_données import T, A, I, O, O_i, Si 
 
 model.T = pyo.Set(initialize=T)  # horizon temporel
 model.A = pyo.Set(initialize=A)  # zones
 model.I = pyo.Set(initialize=I)  # opérateurs
+τ = 'ORANGE'  # notre opérateur
 model.O = pyo.Set(initialize=O)  # offres !!! il faut mettre l'offre de chaque opérateur
+model.O_i = O_i  # offres par opérateur
 model.S = pyo.Set(initialize=Si) # sites de l’opérateur i
 
 # Couples utiles
-C_space = list(product([0,1], repeat=len(I)))  # Toutes les combinaisons de couverture
-Sa_dict = {  # mapping a → {sites}
-    'A1': ['S1', 'S2'],
-    'A2': ['S2', 'S3'],
-    'A3': ['S1', 'S3'],}
-As_dict = {  # mapping s → {zones}
-    'S1': ['A1', 'A3'],
-    'S2': ['A1', 'A2'],
-    'S3': ['A2', 'A3']}
+from importation_des_données import C_space, Sa_dict, As_dict
 
 
 model.Cvec = pyo.Set(initialize=C_space)   # Toutes les combinaisons de couverture
@@ -37,63 +26,23 @@ model.Sa = Sa_dict                         # mapping a → {sites}
 model.As = As_dict                         # mapping s → {zones}
 
 # 2. PARAMÈTRES
+from importation_des_données import Zmax_data, QA_data, ua0_data, DNG_data, CAPANG_data, u_a_data, Rcomp_data, f_data
 
-Zmax_data = {0: 2, 1: 2, 2: 2, 3: 2}
 model.Zmax = pyo.Param(model.T, initialize = Zmax_data)  # nombre max de sites déployables par période
 
-QA_data = {0: 0.2, 1: 0.2, 2: 0.2, 3: 0.2}
 model.QA = pyo.Param(model.T, initialize = QA_data) # couverture minimale de la population par période
 
-ua0_data = {('A1', 'I', 'O1'): 50,
-            ('A1', 'I', 'O2'): 100,
-            ('A1', 'I', 'NO'): 0,
-            ('A1', 'I1', 'O1'): 50,
-            ('A1', 'I1', 'O2'): 100,
-            ('A1', 'I1', 'NO'): 0,
-            ('A2', 'I', 'O1'): 50,
-            ('A2', 'I', 'O2'): 100,
-            ('A2', 'I', 'NO'): 0,
-            ('A2', 'I1', 'O1'): 50,
-            ('A2', 'I1', 'O2'): 100,
-            ('A2', 'I1', 'NO'): 0,
-            ('A3', 'I', 'O1'): 50,
-            ('A3', 'I', 'O2'): 100,
-            ('A3', 'I', 'NO'): 0,
-            ('A3', 'I1', 'O1'): 50,
-            ('A3', 'I1', 'O2'): 100,
-            ('A3', 'I1', 'NO'): 0,}
 model.ua0 = pyo.Param(model.A, model.I, model.O, initialize=ua0_data)  # utilisateurs initiaux
 
-DNG_data = {0: 1, 1: 1, 2: 1, 3: 1}
 model.DNG = pyo.Param(model.T, initialize = DNG_data)  # DNG dépend du temps
 
-CAPANG_data = {0: 200, 1: 200, 2: 200, 3: 200}
 model.CAPANG = pyo.Param(model.T, initialize = CAPANG_data) # DNG et CAPANG dépendent du temps
 
-u_a_data = {'A1': 1000, 'A2': 1500, 'A3': 2000}
 model.u_a = pyo.Param(model.A, initialize = u_a_data)  # utilisateurs totaux dans la zone a
 
-Rcomp_data = {}
-for t in model.T:
-    for a in model.A:
-        for i in model.I:
-            if i != τ:
-                if t==0:
-                    Rcomp_data[(t, a, i)] = 0  # pas de couverture initiale des autres opérateurs
-                else:
-                    if Rcomp_data[(t-1, a, i)] == 1:
-                        Rcomp_data[(t, a, i)] = 1 # une fois couvert, toujours couvert
-                    else:
-                        Rcomp_data[(t, a, i)] = np.random.randint(0,2)
 model.Rcomp = pyo.Param(model.T, model.A, model.I, initialize=Rcomp_data)  # couverture des autres opérateurs
 
-f_data = {}
-for a in model.A:
-    for C in model.Cvec:
-        for o1 in model.O:
-            for o2 in model.O:
-                f_data[(a, C, o1, o2)] =  np.random.rand()
-model.f = pyo.Param(model.A, model.Cvec, model.O, model.O, initialize=f_data)  # taux de migration
+model.f = pyo.Param(model.Cvec, model.O, model.O, initialize=f_data)  # taux de migration (ne dépend pas de la zone selon les données)
 
 # 3. VARIABLES
 
@@ -136,23 +85,69 @@ def delta_implication(m, t, a, *C):
 
 model.c_4 = pyo.Constraint(model.T, model.A, model.Cvec, rule=delta_implication)
 
-# (5) Migration / churn
-def migration(m, t, a, i, o):
-    if t == min(m.T):  # initialisation
-        return m.u[t, a, i, o] == model.ua0[a, i, o]
 
-    return m.u[t, a, i, o] == sum(
-        m.delta[t-1, a, C] * sum(
-            model.f[a, C, o_prev, o] * m.u[t-1, a, i_prev, o_prev]
-            for i_prev in m.I for o_prev in m.O
-        )
-        for C in model.Cvec
-    )
-model.c_5 = pyo.Constraint(model.T, model.A, model.I, model.O, rule=migration)
+
+
+# (5) Migration non-linéaire
+# --- Ajout des variables auxiliaires et paramètres M ---
+# Note: suppose que model.ua0 est disponible comme borne supérieure pour u (tu l'as déjà)
+# On crée un param M[a,C,o]
+def compute_M():
+    M = {}
+    for a in model.A:
+        for C in model.Cvec:
+            for o in model.O:
+                M_val = 0.0
+                for i_prev in model.I:
+                    for o_prev in model.O_i[i_prev]:
+                        M_val += pyo.value(model.f[a, C, o_prev, o]) * pyo.value(model.u_a[a])
+                M[(a, C, o)] = M_val
+    return M
+
+M_data = compute_M()
+
+model.M = pyo.Param(model.A, model.Cvec, model.O, initialize=M_data, mutable=True)
+
+# variable auxiliaire y_{t-1,a,C,o}
+model.y = pyo.Var(model.T, model.A, model.Cvec, model.O, within=pyo.NonNegativeReals)
+
+# (5) 1) y <= M * delta
+def y_le_Mdelta(m, t, a, o, *C):
+    if t == min(m.T): return pyo.Constraint.Skip
+    return m.y[t-1, a, C, o] <= m.M[a, C, o] * m.delta[t-1, a, C]
+model.c_y1 = pyo.Constraint(model.T, model.A, model.O, model.Cvec, rule=y_le_Mdelta)
+
+# (5) 2) y >= 0  (déjà forcé par var NonNegativeReals) -> pas nécessaire
+
+# (5) 3) y <= S
+def y_le_S(m, t, a, o, *C):
+    if t == min(m.T): return pyo.Constraint.Skip
+    S_expr = sum(model.f[a, C, o_prev, o] * m.u[t-1, a, i_prev, o_prev]
+                 for i_prev in m.I for o_prev in m.O_i[i_prev])
+    return m.y[t-1, a, C, o] <= S_expr
+model.c_y2 = pyo.Constraint(model.T, model.A, model.O, model.Cvec, rule=y_le_S)
+
+# (5) 4) y >= S - M*(1-delta)
+def y_ge_S_minus_M_1minusdelta(m, t, a, o, *C):
+    if t == min(m.T): return pyo.Constraint.Skip
+    S_expr = sum(model.f[a, C, o_prev, o] * m.u[t-1, a, i_prev, o_prev]
+                 for i_prev in m.I for o_prev in m.O_i[i_prev])
+    return m.y[t-1, a, C, o] >= S_expr - m.M[a, C, o] * (1 - m.delta[t-1, a, C])
+model.c_y3 = pyo.Constraint(model.T, model.A, model.O, model.Cvec, rule=y_ge_S_minus_M_1minusdelta)
+
+# Remplacer la contrainte migration non-linéaire par la somme des y
+def migration_lin(m, t, a, i, o):
+    if t == min(m.T):
+        return m.u[t, a, i, o] == pyo.value(m.ua0[a, i, o])
+    return m.u[t, a, i, o] == sum(m.y[t-1, a, C, o] for C in m.Cvec)
+model.c_5_lin = pyo.Constraint(model.T, model.A, model.I, model.O, rule=migration_lin)
+
+
+
 
 # (6) u_NO = somme sur les sites
-def assign_users(m, t, a):
-    return m.u[t, a, τ, "NO"] == sum(m.u_site[t, a, s] for s in Sa_dict[a])
+def assign_users(m, t, a, o):
+    return m.u[t, a, τ, o] == sum(m.u_site[t, a, s] for s in Sa_dict[a])
 model.c_6 = pyo.Constraint(model.T, model.A, rule=assign_users)
 
 # (7) capacité
@@ -180,4 +175,16 @@ def objective(m):
     return sum(m.u[T_end, a, τ, "NO"] for a in m.A)
 model.obj = pyo.Objective(rule=objective, sense=pyo.maximize)
 
+
+
 model.write('model.lp', io_options={'symbolic_solver_labels': True})
+
+# Create solver
+solver = pyo.SolverFactory('glpk')
+
+# Solve
+results = solver.solve(model, tee=True)
+
+# Display solver status
+print("\nSolver status:", results.solver.status)
+print("Termination condition:", results.solver.termination_condition)

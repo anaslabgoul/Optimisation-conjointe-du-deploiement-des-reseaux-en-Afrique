@@ -140,9 +140,6 @@ def delta_implication(m, t, a, *C):
 
 model.c_4 = pyo.Constraint(model.T, model.A, model.Cvec, rule=delta_implication)
 
-
-
-
 # (5) Migration non-linéaire
 # --- Ajout des variables auxiliaires et paramètres M ---
 # Note: suppose que model.ua0 est disponible comme borne supérieure pour u (tu l'as déjà)
