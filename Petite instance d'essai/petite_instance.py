@@ -237,7 +237,10 @@ def migration_lin(m, t, a, i, o):
 model.c_5_lin = pyo.Constraint(model.T, model.A, model.I, model.O, rule=migration_lin)
 
 
-
+# (6) u_NO = somme sur les sites
+def assign_users(m, t, a):
+    return m.u[t, a, τ, 'o5G-ORANGE'] == sum(m.u_site[t, a, s] for s in Sa_dict[a])
+model.c_6 = pyo.Constraint(model.T, model.A, rule=assign_users)
 
 
 
