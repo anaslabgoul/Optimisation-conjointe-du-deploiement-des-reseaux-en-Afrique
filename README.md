@@ -77,9 +77,9 @@ Extension : Optimisation conjointe déploiement–retrait legacy (énergie & CO�
 
 ## 3. Structure du dépôt
 
-Le dépôt est organisé pour suivre la progression du rapport. Chaque dossier
-« exécutable » embarque une copie du jeu de données dont ses notebooks ont besoin,
-de sorte qu'ils fonctionnent en lançant Jupyter **depuis ce dossier**.
+Le dépôt est organisé pour suivre la progression du rapport. Les jeux de données
+sont regroupés une seule fois dans `data/` (instance Mayenne) et
+`Petite instance d'essai/` (instance jouet) — voir la note d'exécution au § 6.
 
 ```
 .
@@ -215,13 +215,20 @@ Les notebooks et scripts reposent sur l'écosystème Python scientifique :
 - `matplotlib` — visualisations
 
 ### Exécuter un modèle / une heuristique
-Les notebooks lisent leurs CSV **par nom de fichier simple** (ex. `AREAS.csv`).
-Chaque dossier exécutable contient déjà sa propre copie du jeu de données :
+Les notebooks lisent leurs CSV **par nom de fichier simple** (ex. `AREAS.csv`),
+c'est-à-dire depuis le **répertoire de travail courant**. Le jeu de données Mayenne
+n'étant stocké qu'une seule fois (dans `data/`), copie-le à côté du notebook avant
+de l'exécuter — par exemple :
 
 ```bash
-cd 1_modeles_milp        # ou 2_heuristiques, 3_milp_gnn, 5_instances_aleatoires
-jupyter notebook         # ouvrir puis exécuter le notebook souhaité
+cp data/*.csv 1_modeles_milp/     # ou 2_heuristiques, 3_milp_gnn, 5_instances_aleatoires
+cd 1_modeles_milp
+jupyter notebook                  # ouvrir puis exécuter le notebook souhaité
 ```
+
+Pour la lecture seule (les notebooks conservent leurs sorties enregistrées), aucune
+copie n'est nécessaire. Les tests sur petite instance utilisent de la même façon
+les fichiers de `Petite instance d'essai/`.
 
 ### Lancer l'apprentissage par renforcement
 Les scripts RL prennent le jeu de données en argument (`--data_dir`) :
