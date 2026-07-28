@@ -1,263 +1,259 @@
-# Optimisation conjointe du déploiement des réseaux mobiles en Afrique
+# Joint Optimization of Mobile Network Deployment in Africa
 
-> 🇬🇧 *English version: [README.en.md](README.en.md)*
+> 🇫🇷 *Version française : [README.fr.md](README.fr.md)*
 
-> Déploiement de la nouvelle génération (5G/NG) & stratégie énergétique d'un
-> opérateur télécom en environnement concurrentiel.
+> Next-generation (5G/NG) deployment & energy strategy of a telecom operator
+> in a competitive environment.
 >
-> **PSC — Projet Scientifique Collectif — École Polytechnique × Orange**
+> **PSC — Collective Scientific Project — École Polytechnique × Orange**
 
-Ce dépôt regroupe l'ensemble des modèles mathématiques, heuristiques et
-approches d'intelligence artificielle développés pour déterminer la
-**meilleure réponse** d'un opérateur (ici **Orange**) face aux stratégies de
-déploiement de ses concurrents, sous contraintes de **budget**, de
-**capacité**, de **couverture réglementaire** et — dans l'extension — d'**énergie**
-et d'**empreinte carbone**.
+This repository gathers all the mathematical models, heuristics and
+artificial-intelligence approaches developed to determine the **best response**
+of an operator (here **Orange**) to its competitors' deployment strategies, under
+constraints of **budget**, **capacity**, **regulatory coverage** and — in the
+extension — **energy** and **carbon footprint**.
 
-Le rapport complet est disponible dans [`rapport/Optimisation_conjointe.pdf`](rapport/Optimisation_conjointe.pdf).
+The full report (in French) is available in [`rapport/Optimisation_conjointe.pdf`](rapport/Optimisation_conjointe.pdf).
 
 ---
 
-## 1. Contexte et problème
+## 1. Context and problem
 
-Le trafic mobile explose, porté par la multiplication des terminaux et les usages
-gourmands en bande passante. En Afrique, moderniser le réseau (déployer la 5G) est
-un levier stratégique de captation de parts de marché, mais il se heurte à des
-budgets annuels limités, à des exigences réglementaires de couverture, et à des
-contraintes d'infrastructure (énergie fiable) fortes.
+Mobile traffic is exploding, driven by the proliferation of devices and
+bandwidth-hungry usage. In Africa, modernizing the network (deploying 5G) is a
+strategic lever to capture market share, but it faces limited annual budgets,
+regulatory coverage requirements, and strong infrastructure constraints
+(reliable energy).
 
-On considère un marché concurrentiel :
+We consider a competitive market:
 
-| Élément | Notation | Description |
+| Element | Notation | Description |
 |---|---|---|
-| Opérateurs | `I = {ORANGE, FREE MOBILE, BOUYGUES TELECOM, SFR}` | Orange = opérateur cible `τ` |
-| Technologies legacy | `G = {2G, 3G, 4G}` | La 2G est conservée (service minimal) |
-| Nouvelle génération | `NG` (5G) | Technologie à déployer |
-| Zones géographiques | `A` | Chaque zone `a` a une population potentielle `uₐ` |
-| Sites | `Sτ` | Sites de l'opérateur cible |
-| Horizon | `T = {0, 1, …, |T|}` | Périodes de planification |
+| Operators | `I = {ORANGE, FREE MOBILE, BOUYGUES TELECOM, SFR}` | Orange = target operator `τ` |
+| Legacy technologies | `G = {2G, 3G, 4G}` | 2G is kept (minimal service) |
+| New generation | `NG` (5G) | Technology to deploy |
+| Geographic areas | `A` | Each area `a` has a potential population `uₐ` |
+| Sites | `Sτ` | Sites of the target operator |
+| Horizon | `T = {0, 1, …, |T|}` | Planning periods |
 
-**Décision principale :** les variables binaires `zₛᵗ = 1` si la NG est installée
-sur le site `s` à la période `t`. Les plans des concurrents `Rₐ,ᵢᵗ` sont supposés
-**connus** (meilleure réponse). L'**objectif** est de maximiser la part de marché
-NG d'Orange à la fin de l'horizon.
+**Main decision:** the binary variables `zₛᵗ = 1` if NG is installed on site `s`
+at period `t`. Competitors' plans `Rₐ,ᵢᵗ` are assumed **known** (best response).
+The **objective** is to maximize Orange's NG market share at the end of the horizon.
 
 ---
 
-## 2. Démarche méthodologique
+## 2. Methodological approach
 
-Le projet explore une **hiérarchie de méthodes de résolution**, du modèle exact
-aux approches d'apprentissage, chacune répondant au compromis
-*qualité de solution ↔ temps de calcul*.
+The project explores a **hierarchy of solution methods**, from the exact model to
+learning-based approaches, each addressing the trade-off
+*solution quality ↔ computation time*.
 
 ```
-MINLP initial ──► MILP initial ──► MILP reformulé          (modèles exacts)
+Initial MINLP ──► Initial MILP ──► Reformulated MILP        (exact models)
                                         │
                                         ├──► Fix-and-Relax
-                                        ├──► Algorithme Génétique (solveur / direct)
-                                        ├──► Algorithme Mémétique
-                                        ├──► MILP-GNN (warm-start par réseau de neurones sur graphe)
-                                        └──► Apprentissage par Renforcement (PPO)
+                                        ├──► Genetic Algorithm (solver-based / direct)
+                                        ├──► Memetic Algorithm
+                                        ├──► MILP-GNN (warm-start via graph neural network)
+                                        └──► Reinforcement Learning (PPO)
 
-Extension : Optimisation conjointe déploiement–retrait legacy (énergie & CO₂)
+Extension: Joint deployment–legacy-retirement optimization (energy & CO₂)
 ```
 
-### Résultats synthétiques
+### Summary of results
 
-| Méthode | Qualité (% de l'optimal) | Gain de temps | Remarque |
+| Method | Quality (% of optimum) | Time gain | Note |
 |---|---|---|---|
-| **MILP reformulé** | 100 % (exact) | −63 % vs MILP initial | −76 % de contraintes, −17 % de variables |
-| **Fix-and-Relax** | — | inefficace | Brise les déductions du *presolve*, > 30 min |
-| **AG direct** (glouton structuré) | ≈ 81,6 % | −87,7 % (550 zones) | Complexité polynomiale `O(GSA)` |
-| **Algorithme mémétique** | ≈ 97,8 % | −83 % vs solveur | Recherche locale *first-improvement* |
-| **MILP-GNN** (ratio 0,5) | ≈ 97,5 % | −71,6 % | ratio 0,8 → −91,7 % ; ratio 0,95 → infaisable |
-| **RL — PPO** | 65,3 % de part de marché* | inférence en ~ms | *≈ 2× le glouton (34,6 %), mais viole QA dans 40 % des pas |
+| **Reformulated MILP** | 100 % (exact) | −63 % vs initial MILP | −76 % constraints, −17 % variables |
+| **Fix-and-Relax** | — | ineffective | Breaks the *presolve* deductions, > 30 min |
+| **Direct GA** (structured greedy) | ≈ 81.6 % | −87.7 % (550 areas) | Polynomial complexity `O(GSA)` |
+| **Memetic algorithm** | ≈ 97.8 % | −83 % vs solver | *First-improvement* local search |
+| **MILP-GNN** (ratio 0.5) | ≈ 97.5 % | −71.6 % | ratio 0.8 → −91.7 % ; ratio 0.95 → infeasible |
+| **RL — PPO** | 65.3 % market share* | inference in ~ms | *≈ 2× greedy (34.6 %), but violates QA in 40 % of steps |
 
-> Instance de référence : **Mayenne** (723 sites, 616 zones), fournie par Orange.
+> Reference instance: **Mayenne** (723 sites, 616 areas), provided by Orange.
 
 ---
 
-## 3. Structure du dépôt
+## 3. Repository structure
 
-Le dépôt est organisé pour suivre la progression du rapport. Les jeux de données
-sont regroupés une seule fois dans `data/` (instance Mayenne) et
-`Petite instance d'essai/` (instance jouet) — voir la note d'exécution au § 6.
+The repository is organized to follow the report's progression. Datasets are
+grouped only once in `data/` (Mayenne instance) and `Petite instance d'essai/`
+(toy instance) — see the execution note in § 6.
 
 ```
 .
-├── rapport/                          # Rapport final (PDF)
+├── rapport/                          # Final report (PDF, French)
 │
-├── data/                             # Jeu de données canonique : instance MAYENNE (723 sites, 616 zones)
-├── Petite instance d'essai/          # Petite instance jouet (validation manuelle des modèles)
+├── data/                             # Canonical dataset: MAYENNE instance (723 sites, 616 areas)
+├── Petite instance d'essai/          # Small toy instance (manual model validation)
 │
-├── 0_exploration_donnees/            # Exploration / visualisation des fichiers CSV (lit ../data)
+├── 0_exploration_donnees/            # Exploration / visualization of the CSV files (reads ../data)
 │
-├── 1_modeles_milp/                   # § Modèles mathématiques
-│   ├── MILP initial.ipynb            #   Linéarisation Big-M du MINLP
-│   └── MILP reformulé.ipynb          #   Reformulation (–76 % de contraintes)
+├── 1_modeles_milp/                   # § Mathematical models
+│   ├── MILP initial.ipynb            #   Big-M linearization of the MINLP
+│   └── MILP reformulé.ipynb          #   Reformulation (−76 % constraints)
 │
-├── 2_heuristiques/                   # § Heuristiques & métaheuristiques
-│   ├── Fix&Relax - AG.ipynb          #   Fix-and-Relax + algorithme génétique basé solveur
-│   ├── Algorithmes_heuristiques_Work.ipynb  # AG direct + mémétique (évaluation sans solveur)
-│   └── Heuristic_algorithms.ipynb    #   Première version des heuristiques
+├── 2_heuristiques/                   # § Heuristics & metaheuristics
+│   ├── Fix&Relax - AG.ipynb          #   Fix-and-Relax + solver-based genetic algorithm
+│   ├── Algorithmes_heuristiques_Work.ipynb  # Direct GA + memetic (solver-free evaluation)
+│   └── Heuristic_algorithms.ipynb    #   First heuristics version
 │
 ├── 3_milp_gnn/                       # § MILP-GNN
-│   └── MILP GNN.ipynb                #   GraphSAGE pour prédire les variables à fixer (warm-start)
+│   └── MILP GNN.ipynb                #   GraphSAGE to predict which variables to fix (warm-start)
 │
-├── 4_apprentissage_renforcement/     # § Apprentissage par renforcement (PPO)
-│   ├── ng_deployment_env.py          #   Environnement Gymnasium (MDP de déploiement)
-│   ├── train_ppo.py                  #   Entraînement de l'agent PPO
-│   └── RL_evaluate_ng_deployment.py  #   Évaluation vs baselines (Greedy, Random)
+├── 4_apprentissage_renforcement/     # § Reinforcement learning (PPO)
+│   ├── ng_deployment_env.py          #   Gymnasium environment (deployment MDP)
+│   ├── train_ppo.py                  #   PPO agent training
+│   └── RL_evaluate_ng_deployment.py  #   Evaluation vs baselines (Greedy, Random)
 │
-├── 5_instances_aleatoires/           # Génération & tests sur instances aléatoires (1ᵉ / 2ⁿᵈ modèle)
+├── 5_instances_aleatoires/           # Generation & tests on random instances (1st / 2nd model)
 │
-├── prototypes/                       # Travaux exploratoires & versions antérieures
-│   ├── modeles_initiaux/             #   Premier / Deuxième modèle (+ données étendues)
-│   ├── tests_pyomo/                  #   Prototypes Pyomo (dont données ANFR)
-│   └── tests_petite_instance/        #   Tests de rectification sur petite instance
+├── prototypes/                       # Exploratory work & earlier versions
+│   ├── modeles_initiaux/             #   First / Second model (+ extended data)
+│   ├── tests_pyomo/                  #   Pyomo prototypes (incl. ANFR data)
+│   └── tests_petite_instance/        #   Rectification tests on the small instance
 │
-└── utils/                            # Utilitaires de chargement des données
-    ├── importation_des_données.py    #   (à lancer depuis la racine du dépôt)
+└── utils/                            # Data-loading utilities
+    ├── importation_des_données.py    #   (run from the repository root)
     └── test-petite-instance-donnees.py
 ```
 
 ---
 
-## 4. Les modèles et méthodes
+## 4. Models and methods
 
-### 4.1 Modèles MILP (`1_modeles_milp/`)
-Le problème est d'abord posé comme un **MINLP** (programme non linéaire en nombres
-entiers mixtes). Deux non-linéarités sont traitées :
-- la **contrainte de migration** des clients (produit binaire × continu) est
-  linéarisée par la technique **Big-M** avec des bornes affinées ;
-- la **contrainte de décodage de l'indicatrice** `δₐ,Cᵗ` (explosion combinatoire
-  en `2^|I|`) est **éliminée** dans le *MILP reformulé* en exploitant le fait que
-  la couverture concurrente `Rₐᵗ` est un paramètre fixé.
+### 4.1 MILP models (`1_modeles_milp/`)
+The problem is first posed as a **MINLP** (mixed-integer nonlinear program). Two
+nonlinearities are handled:
+- the customer **migration constraint** (binary × continuous product) is
+  linearized with the **Big-M** technique using tightened bounds;
+- the **indicator-decoding constraint** `δₐ,Cᵗ` (combinatorial explosion in
+  `2^|I|`) is **eliminated** in the *reformulated MILP* by exploiting the fact that
+  competitor coverage `Rₐᵗ` is a fixed parameter.
 
-Ajouts de modélisation : dépendance temporelle de la demande `Dᴺᴳ` et de la
-capacité `CAPAᴺᴳ`, **monotonie** du déploiement (`zₛᵗ ≥ zₛᵗ⁻¹`), relaxation de
-l'intégrité des variables de population.
+Modeling additions: time dependence of demand `Dᴺᴳ` and capacity `CAPAᴺᴳ`,
+**monotonicity** of deployment (`zₛᵗ ≥ zₛᵗ⁻¹`), relaxation of the integrality of
+population variables.
 
-→ **−76 % de contraintes** (1 653 574 → 399 580) et **−63 % de temps** sur des
-instances à 500 zones, à valeur objectif quasi identique (solveur **Gurobi**).
+→ **−76 % constraints** (1,653,574 → 399,580) and **−63 % time** on 500-area
+instances, at a nearly identical objective value (**Gurobi** solver).
 
-### 4.2 Heuristiques & métaheuristiques (`2_heuristiques/`)
-- **Fix-and-Relax** — fenêtre glissante entière / futur relaxé / passé fixé.
-  Peu efficace ici : relâcher le futur casse la contrainte de monotonie et donc
-  le pouvoir de coupe du *presolve*.
-- **Algorithme génétique** — deux versions :
-  1. *basée solveur* (chaque individu = affectation `z`, fitness = sous-problème
-     MILP) : fidèle mais intractable ;
-  2. *directe* : encodage par **dates de premier déploiement**, **évaluation
-     analytique sans solveur** (`z ⇒ r ⇒ u`), précalcul des trajectoires,
-     mémoïsation, et **initialisation gloutonne structurée** (swap / time-shift /
-     jitter).
-- **Algorithme mémétique** — AG direct + **recherche locale first-improvement** et
-  **mutations structurées** (`swap_periods`, `advance_best`, `delay_worst`).
-  Meilleur compromis qualité/temps (≈ 97,8 % de l'optimal).
+### 4.2 Heuristics & metaheuristics (`2_heuristiques/`)
+- **Fix-and-Relax** — sliding window with integer present / relaxed future /
+  fixed past. Ineffective here: relaxing the future breaks the monotonicity
+  constraint and thus the cutting power of the *presolve*.
+- **Genetic algorithm** — two versions:
+  1. *solver-based* (each individual = an assignment of `z`, fitness = the MILP
+     subproblem): faithful but intractable;
+  2. *direct*: encoding by **first-deployment dates**, **solver-free analytical
+     evaluation** (`z ⇒ r ⇒ u`), trajectory precomputation, memoization, and a
+     **structured greedy initialization** (swap / time-shift / jitter).
+- **Memetic algorithm** — direct GA + **first-improvement local search** and
+  **structured mutations** (`swap_periods`, `advance_best`, `delay_worst`). Best
+  quality/time trade-off (≈ 97.8 % of the optimum).
 
 ### 4.3 MILP-GNN (`3_milp_gnn/`)
-Représentation en **graphe de sites** (un nœud par site, arête si deux sites
-couvrent une zone commune ; features = degré + potentiel client). Un réseau
-**GraphSAGE** à 3 couches prédit l'instant de déploiement de chaque site. Un
-**ratio** de variables `zₛᵗ` les plus sûres est fixé pour donner un
-**« démarrage à chaud »** au solveur. Compromis précision ↔ temps piloté par le
-ratio (0,5 → excellent ; 0,95 → risque d'infaisabilité).
+A **site-graph** representation (one node per site, an edge if two sites cover a
+common area; features = degree + client potential). A 3-layer **GraphSAGE**
+network predicts each site's deployment time. A **ratio** of the most confident
+`zₛᵗ` variables is fixed to give the solver a **warm start**. The
+precision ↔ time trade-off is driven by the ratio (0.5 → excellent ;
+0.95 → risk of infeasibility).
 
-### 4.4 Apprentissage par renforcement (`4_apprentissage_renforcement/`)
-Le déploiement est formulé comme un **MDP à horizon fini** et résolu par **PPO**
-(*Proximal Policy Optimization*). L'agent observe l'état complet (déploiement,
-couverture, distribution des abonnés, couverture concurrente, budget, écart
-réglementaire) et produit un score par site ; les `Zᵗ` meilleurs sites sont
-déployés. Une fois entraîné, il décide en quelques millisecondes. Limite : la
-récompense pénalise mais ne garantit pas les contraintes (QA violée dans 40 % des
-pas), et l'architecture MLP impose une taille d'instance fixe.
+### 4.4 Reinforcement learning (`4_apprentissage_renforcement/`)
+Deployment is formulated as a **finite-horizon MDP** and solved with **PPO**
+(*Proximal Policy Optimization*). The agent observes the full state (deployment,
+coverage, subscriber distribution, competitor coverage, budget, regulatory gap)
+and outputs a score per site; the `Zᵗ` top-scoring sites are deployed. Once
+trained, it decides in a few milliseconds. Limitation: the reward penalizes but
+does not guarantee the constraints (QA violated in 40 % of steps), and the MLP
+architecture requires a fixed instance size.
 
-### 4.5 Extension énergétique (rapport, § 7)
-Modèle d'**optimisation conjointe déploiement–retrait** `(PE)` : un second levier
-de décision permet de **retirer** les couches legacy (3G/4G) pour transférer leur
-enveloppe énergétique vers la NG, sous **budget énergétique** `Eₜᵐᵃˣ` et
-**plafond carbone** `CO₂,ₜᵐᵃˣ`, avec redistribution des clients évincés. Formulé
-dans le rapport (implémentation en perspective).
+### 4.5 Energy extension (report, § 7)
+A **joint deployment–retirement optimization** model `(PE)`: a second decision
+lever allows **retiring** the legacy layers (3G/4G) to transfer their energy
+envelope to NG, under an **energy budget** `Eₜᵐᵃˣ` and a **carbon cap**
+`CO₂,ₜᵐᵃˣ`, with redistribution of evicted customers. Formulated in the report
+(implementation as future work).
 
 ---
 
-## 5. Les données (instance Mayenne)
+## 5. Data (Mayenne instance)
 
-Les données proviennent de l'instance **Mayenne** (723 sites, 616 zones) fournie
-par les tuteurs Orange. Correspondance fichiers ↔ paramètres du modèle :
+The data comes from the **Mayenne** instance (723 sites, 616 areas) provided by
+the Orange tutors. Mapping of files ↔ model parameters:
 
-| Fichier source | Paramètre(s) | Description |
+| Source file | Parameter(s) | Description |
 |---|---|---|
-| `AREAS.csv` | `u⁰ₐ,ᵢ,ₒ`, `uₐ` | Population initiale par zone, opérateur et offre |
-| `EXISTING_SITES.csv` | `Sτ` | Sites de l'opérateur cible (+ état 3G/4G/5G) |
-| `AREAS_SITES_LINK.csv` | `Sₐ,τ`, `Aₛ` | Lien zones ↔ sites (couverture géographique) |
-| `COMPETITORS_STRATEGY.csv` | `Rₐ,ᵢᵗ` | Couverture NG des concurrents par zone & période |
-| `DEMAND.csv` | `Dᴺᴳᵗ` | Demande de trafic 5G par période |
-| `CAPACITY.csv` | `CAPAᴺᴳᵗ` | Capacité d'un site NG par période |
-| `OPERATIONAL_LIMITS.csv` | `Z̄ᵗ` | Budget de déploiement par période |
-| `STRATEGIC_GUIDELINES.csv` | `QAᵗ` | Cible réglementaire de couverture minimale |
-| `UPGRADE_FUNCTION.csv` | `fₐ,C,o′,o` | Fonction de migration entre offres selon le contexte de couverture |
+| `AREAS.csv` | `u⁰ₐ,ᵢ,ₒ`, `uₐ` | Initial population per area, operator and offer |
+| `EXISTING_SITES.csv` | `Sτ` | Target operator's sites (+ 3G/4G/5G status) |
+| `AREAS_SITES_LINK.csv` | `Sₐ,τ`, `Aₛ` | Area ↔ site link (geographic coverage) |
+| `COMPETITORS_STRATEGY.csv` | `Rₐ,ᵢᵗ` | Competitors' NG coverage per area & period |
+| `DEMAND.csv` | `Dᴺᴳᵗ` | 5G traffic demand per period |
+| `CAPACITY.csv` | `CAPAᴺᴳᵗ` | NG site capacity per period |
+| `OPERATIONAL_LIMITS.csv` | `Z̄ᵗ` | Deployment budget per period |
+| `STRATEGIC_GUIDELINES.csv` | `QAᵗ` | Regulatory minimum-coverage target |
+| `UPGRADE_FUNCTION.csv` | `fₐ,C,o′,o` | Migration function between offers given the coverage context |
 
-Une **petite instance jouet** (`Petite instance d'essai/`) sert à valider
-manuellement les modèles.
+A **small toy instance** (`Petite instance d'essai/`) is used to manually validate
+the models.
 
 ---
 
-## 6. Prise en main
+## 6. Getting started
 
-### Dépendances principales
-Les notebooks et scripts reposent sur l'écosystème Python scientifique :
+### Main dependencies
+The notebooks and scripts rely on the scientific Python ecosystem:
 
-- `pandas`, `numpy` — manipulation des données
-- `pyomo` — modélisation MILP, avec un solveur (**Gurobi**, ou open-source
+- `pandas`, `numpy` — data handling
+- `pyomo` — MILP modeling, with a solver (**Gurobi**, or open-source
   **HiGHS** / **GLPK**)
 - `torch`, `torch-geometric` — GNN (GraphSAGE)
-- `gymnasium`, `stable-baselines3` — apprentissage par renforcement (PPO)
-- `matplotlib` — visualisations
+- `gymnasium`, `stable-baselines3` — reinforcement learning (PPO)
+- `matplotlib` — visualizations
 
-### Exécuter un modèle / une heuristique
-Les notebooks lisent leurs CSV **par nom de fichier simple** (ex. `AREAS.csv`),
-c'est-à-dire depuis le **répertoire de travail courant**. Le jeu de données Mayenne
-n'étant stocké qu'une seule fois (dans `data/`), copie-le à côté du notebook avant
-de l'exécuter — par exemple :
+### Running a model / a heuristic
+The notebooks read their CSVs **by simple filename** (e.g. `AREAS.csv`), i.e. from
+the **current working directory**. Since the Mayenne dataset is stored only once
+(in `data/`), copy it next to the notebook before running it — for example:
 
 ```bash
-cp data/*.csv 1_modeles_milp/     # ou 2_heuristiques, 3_milp_gnn, 5_instances_aleatoires
+cp data/*.csv 1_modeles_milp/     # or 2_heuristiques, 3_milp_gnn, 5_instances_aleatoires
 cd 1_modeles_milp
-jupyter notebook                  # ouvrir puis exécuter le notebook souhaité
+jupyter notebook                  # open then run the desired notebook
 ```
 
-Pour la lecture seule (les notebooks conservent leurs sorties enregistrées), aucune
-copie n'est nécessaire. Les tests sur petite instance utilisent de la même façon
-les fichiers de `Petite instance d'essai/`.
+For read-only browsing (the notebooks keep their saved outputs), no copy is
+needed. The small-instance tests use the files in `Petite instance d'essai/` the
+same way.
 
-### Lancer l'apprentissage par renforcement
-Les scripts RL prennent le jeu de données en argument (`--data_dir`) :
+### Running reinforcement learning
+The RL scripts take the dataset as an argument (`--data_dir`):
 
 ```bash
 cd 4_apprentissage_renforcement
-python train_ppo.py                              # entraînement (ajuster data_dir dans le script)
+python train_ppo.py                              # training (adjust data_dir in the script)
 python RL_evaluate_ng_deployment.py --data_dir ../data --episodes 10
 ```
 
-### Utilitaire de chargement
-`utils/importation_des_données.py` charge la petite instance ; à lancer **depuis
-la racine du dépôt** (chemins relatifs à `Petite instance d'essai/`).
+### Loading utility
+`utils/importation_des_données.py` loads the small instance; run it **from the
+repository root** (paths are relative to `Petite instance d'essai/`).
 
 ---
 
-## 7. Équipe
+## 7. Team
 
-**Auteurs** — Labgoul Anas · Oujaa Haitam Yassine · Takfa Anass ·
+**Authors** — Labgoul Anas · Oujaa Haitam Yassine · Takfa Anass ·
 Belfatmi Ayoub · Ait Mansour Abderrahmane
 
-**Tuteurs (Orange / École Polytechnique)** — Matthieu Chardy · Amal Benhamiche ·
+**Tutors (Orange / École Polytechnique)** — Matthieu Chardy · Amal Benhamiche ·
 Youssouf Hadhbi · Aurélien Bechler
 
 ---
 
-## 8. Références principales
+## 8. Main references
 
 1. A. Cambier, M. Chardy, R. Figueiredo, A. Ouorou, M. Poss — *Optimizing the
    investments in mobile networks and subscriber migrations for a telecommunication
@@ -273,6 +269,6 @@ Youssouf Hadhbi · Aurélien Bechler
 6. J. Schulman, F. Wolski, P. Dhariwal, A. Radford, O. Klimov — *Proximal Policy
    Optimization Algorithms*, 2017.
 7. P. Zappalà — *Méthodes de résolution des jeux en forme extensive avec application
-   au marché des réseaux mobiles*, Thèse, Avignon Université, 2024.
+   au marché des réseaux mobiles*, PhD thesis, Avignon Université, 2024.
 
-> La bibliographie complète figure dans le rapport.
+> The complete bibliography is in the report.
