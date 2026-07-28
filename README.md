@@ -1,5 +1,7 @@
 # Optimisation conjointe du déploiement des réseaux mobiles en Afrique
 
+> 🇬🇧 *English version: [README.en.md](README.en.md)*
+
 > Déploiement de la nouvelle génération (5G/NG) & stratégie énergétique d'un
 > opérateur télécom en environnement concurrentiel.
 >
